@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/src/**",
+                "${workspaceFolder}/dep/wx_win/lib/mswu",
+                "${workspaceFolder}/dep/wx_win/include"
+            ],
+            "defines": [
+                "_WINDOWS",
+                "_UNICODE",
+                "__WXMSW__",
+                "NDEBUG",
+                "NOPCH"
+            ],
+            "cStandard": "c23",
+            "cppStandard": "c++20"
+        }
+    ],
+    "version": 4
+}
