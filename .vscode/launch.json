@@ -12,6 +12,7 @@
             "cwd": "${command:cmake.getLaunchTargetDirectory}",
             "externalConsole": true,
             "MIMode": "gdb",
+            "miDebuggerPath": "E:\\PortableApps\\mingw64\\bin\\gdb.exe",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

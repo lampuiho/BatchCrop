@@ -1,13 +1,26 @@
+#include <wx/artprov.h>
+#include <wx/bmpbuttn.h>
 #include "FolderPicker.hpp"
 
-FolderPicker::FolderPicker(wxFrame *parent, int baseId, std::string title) {
-    wxBoxSizer *panelSizer = new wxBoxSizer(wxVERTICAL);
+FolderPicker::FolderPicker(wxWindow *parent, int baseId, std::string title) : wxPanel(parent, wxID_ANY) {
+    auto panelSizer = new wxBoxSizer(wxVERTICAL);
     panelSizer->Add(new wxStaticText(this, wxID_ANY, title));
 
-    wxBoxSizer *pickerSizer = new wxBoxSizer(wxHORIZONTAL);
-    pickerSizer->Add(new wxButton(this, baseId+Ctrl::OPEN, "📁"));
-    pickerSizer->Add(new wxTextCtrl(this, baseId+Ctrl::TEXT), 1, wxEXPAND | wxALL, 5);
-    pickerSizer->Add(new wxButton(this, baseId+Ctrl::CLOSE, "❌"));
+    auto pickerSizer = new wxBoxSizer(wxHORIZONTAL);
+    pickerSizer->Add(new wxBitmapButton(this, baseId+Ctrl::OPEN, wxArtProvider::GetIcon(wxART_FOLDER_OPEN)));
+    pathDisplay = new wxTextCtrl(this, baseId+Ctrl::TEXT);
+    pathDisplay->SetEditable(false);
+    pickerSizer->Add(pathDisplay, 1, wxEXPAND);
+    pickerSizer->Add(new wxBitmapButton(this, baseId+Ctrl::CLOSE, wxArtProvider::GetIcon(wxART_CLOSE)), 0, wxEXPAND);
 
-    panelSizer->Add(pickerSizer);
+    panelSizer->Add(pickerSizer, 0, wxEXPAND);
+
+    this->SetSizer(panelSizer);
+}
+void FolderPicker::OpenFolder(wxString folder) {
+    pathDisplay->Clear();
+    pathDisplay->AppendText(folder);
+}
+void FolderPicker::CloseFolder() {
+    pathDisplay->Clear();
 }

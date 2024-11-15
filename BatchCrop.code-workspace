@@ -51,7 +51,16 @@
 			"ostream": "cpp",
 			"stdexcept": "cpp",
 			"streambuf": "cpp",
-			"typeinfo": "cpp"
+			"typeinfo": "cpp",
+			"hash_set": "cpp",
+			"unordered_set": "cpp",
+			"filesystem": "cpp",
+			"chrono": "cpp",
+			"codecvt": "cpp",
+			"ctime": "cpp",
+			"ratio": "cpp",
+			"iomanip": "cpp",
+			"sstream": "cpp"
 		}
 	},
 }
