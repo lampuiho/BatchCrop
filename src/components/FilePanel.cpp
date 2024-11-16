@@ -52,7 +52,7 @@ void FilePanel::OnOpenSrcFolder(wxCommandEvent& event) {
         OpenSrcFolder(path, files);
     }
 }
-void FilePanel::OnCloseSrcFolder(wxCommandEvent& event) {  CloseSrcFolder(); }
+void FilePanel::OnCloseSrcFolder(wxCommandEvent& event) {  CloseSrcFolder(); event.Skip(); }
 void FilePanel::OnOpenOutFolder(wxCommandEvent& event) { /* Output folder selection */ }
 
 wxBEGIN_EVENT_TABLE(FilePanel, wxPanel)

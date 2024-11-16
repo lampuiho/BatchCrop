@@ -3,6 +3,7 @@
 #include <wx/filedlg.h>
 #include <wx/dcbuffer.h>
 #include <wx/filename.h>
+#include "utils/events.hpp"
 #include "components/CropOptPanel.hpp"
 #include "components/FolderPicker.hpp"
 #include "components/FilePanel.hpp"
@@ -50,6 +51,7 @@ wxBEGIN_EVENT_TABLE(BatchCropFrame, wxFrame)
     EVT_BUTTON(FilePanel::Picker::SOURCE+FolderPicker::Ctrl::CLOSE, BatchCropFrame::OnCloseSrcFolder)
     EVT_LISTBOX(FilePanel::FILE_LIST, BatchCropFrame::OnOpenFile)
     EVT_BUTTON(CropOptPanel::Ctrl::SAVE, BatchCropFrame::OnSaveImage)
+    EVT_COMMAND(CROP_OPT_PANEL_ID, DEFINE_CROP, BatchCropFrame::OnCropBoxAdjust)
     // EVT_BUTTON(1007, BatchCropFrame::OnZoomIn)
     // EVT_BUTTON(1008, BatchCropFrame::OnZoomOut)
 wxEND_EVENT_TABLE()
@@ -102,6 +104,9 @@ void BatchCropFrame::OnPreviousFile(wxCommandEvent& event) { /* Previous file co
 void BatchCropFrame::OnSaveImage(wxCommandEvent& event) { /* Save cropped image code */ }
 void BatchCropFrame::OnZoomIn(wxCommandEvent& event) { /* Zoom in functionality */ }
 void BatchCropFrame::OnZoomOut(wxCommandEvent& event) { /* Zoom out functionality */ }
-void BatchCropFrame::OnCropBoxAdjust(wxCommandEvent& event) { /* Crop box adjust */ }
+void BatchCropFrame::OnCropBoxAdjust(wxCommandEvent &event) {
+    auto &rect = *(wxRect*)event.GetClientData();
+    wxLogInfo("%d,%d,%d,%d",rect.x,rect.y,rect.width,rect.height);
+}
 void BatchCropFrame::OnCropBoxColorChange(wxCommandEvent& event) { /* Crop box color change */ }
 void BatchCropFrame::OnTransparencyChange(wxCommandEvent& event) { /* Transparency adjustment */ }
