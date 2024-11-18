@@ -67,7 +67,10 @@
 			"format": "cpp",
 			"span": "cpp",
 			"text_encoding": "cpp",
-			"variant": "cpp"
+			"variant": "cpp",
+			"jinclude.h": "c",
+			"transupp.h": "c",
+			"jpeglib.h": "c"
 		}
 	},
 }

@@ -2,7 +2,7 @@
 #include <wx/graphics.h>
 #include <wx/image.h>
 #include <wx/scrolwin.h>
-#include "../utils/events.hpp"
+#include "../common/events.hpp"
 #include "CropOptPanel.hpp"
 #include "PictureFrame.hpp"
 
@@ -24,6 +24,22 @@ void PictureFrame::LoadImage(const wxString &fullPath) {
         CloseImage();
     }
 }
+bool PictureFrame::SaveCrop(const wxString &fullPath, wxString &error) {
+    if (image.IsOk()) {
+        // checking cropBox
+        if (cropBox.width<=2 || cropBox.height<=2) {
+            error += "Crop dimension too small. Width: " + std::to_string(cropBox.width) + " Height: " + std::to_string(cropBox.height);
+            if (cropBox.width <= 0 || cropBox.height <= 0) return false;
+        }
+        auto res = image.GetSubImage(cropBox).SaveFile(fullPath);
+        if (!res) error += "wx failed to save image file.";
+        // figure out jpeg lossless cropping in the future
+        return res;
+    } else {
+        if (error.IsEmpty()) error += "No image opened.";
+        return false;
+    }
+}
 double PictureFrame::GetFitImageZoom() {
     if (!bitmap.IsOk()) return 1;
 
@@ -33,22 +49,28 @@ double PictureFrame::GetFitImageZoom() {
 
     return std::min(scaleX, scaleY);  // Fit both width and height
 }
-void PictureFrame::SetZoom(int percentage) {
+void PictureFrame::SetZoom(int percentage, bool refresh) {
     zoom = percentage;
     UpdateScale();
+    if (refresh && needRedraw) Refresh();
 }
 void PictureFrame::ZoomIn(int rot) {
-    SetZoom((static_cast<int>(std::floor(scale*4))+rot)*25);
+    SetZoom((static_cast<int>(std::floor(scale*4))+rot)*25, true);
 }
 void PictureFrame::ZoomOut(int rot) {
-    SetZoom(std::max(25, ((static_cast<int>(std::ceil(scale*4)))-rot)*25));
+    SetZoom(std::max(25, ((static_cast<int>(std::ceil(scale*4)))-rot)*25), true);
 }
 void PictureFrame::UpdateScale() {
     if (!bitmap.IsOk()) return;
     auto oldScale = scale;
     scale = zoom<=0 ? GetFitImageZoom() : static_cast<double>(zoom)/100.;
     UpdateScaleOffset(scale, oldScale);
-    if (oldScale != scale) needRedraw = true;
+    if (oldScale != scale) {
+        needRedraw = true;
+        wxCommandEvent event(UPDATE_ZOOM, this->GetId());
+        event.SetInt(scale*100);
+        wxPostEvent(this, event);
+    }
 }
 void PictureFrame::StartCrop() {
     if (bitmap.IsOk()) {
@@ -87,6 +109,7 @@ void PictureFrame::OnDraw(wxDC& dc) {
 void PictureFrame::CloseImage() {
     if (bitmap.IsOk()) {
         cropState = DONE;
+        image.Destroy();
         bitmap = wxBitmap();
         SetVirtualSize(GetClientSize());
         Refresh();
@@ -162,7 +185,7 @@ void PictureFrame::OnMouseLeftDown(wxMouseEvent &event) {
         }
     }
 }
-void PictureFrame::OnMouseDrag(wxMouseEvent& event) {
+void PictureFrame::OnMouseDrag(wxMouseEvent &event) {
     if ((isPanning || isDraggingCrop) && event.Dragging() && event.LeftIsDown()) {
         wxPoint currentPos = event.GetPosition();
         wxPoint delta = isPanning ? panStart-currentPos : currentPos-panStart;
@@ -201,17 +224,16 @@ void PictureFrame::OnMouseDrag(wxMouseEvent& event) {
         if (cropBox!=backup) OnCropBoxUpdate();
     }
 }
-void PictureFrame::OnMouseScroll(wxMouseEvent& event) {
+void PictureFrame::OnMouseScroll(wxMouseEvent &event) {
     auto r = event.GetWheelRotation()/event.GetWheelDelta();
     if (r > 0) ZoomIn(r);
     else if (r < 0) ZoomOut(-r);
-    if (needRedraw) Refresh();
 }
-void PictureFrame::OnWindowSizeChange(wxSizeEvent& event) {
+void PictureFrame::OnWindowSizeChange(wxSizeEvent &event) {
     UpdateScale();
     Refresh();
 }
-void PictureFrame::OnEraseBackGround(wxEraseEvent& event) {}
+void PictureFrame::OnEraseBackGround(wxEraseEvent &event) {}
 void PictureFrame::OnCropBoxUpdate() {
     Refresh();
     wxCommandEvent event(DEFINE_CROP, this->GetId());

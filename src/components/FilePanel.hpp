@@ -7,19 +7,22 @@ public:
     FilePanel(wxFrame *parent);
     wxString GetOpenedSrc();
     wxString GetOpenedOut();
+    wxString GetOpenedFile();
     void Invalidate(int idx);
 private:
     FolderPicker *srcPicker;
     FolderPicker *outPicker;
     wxListBox *fileList;
 
-    void OpenSrcFolder(wxString folder, std::vector<wxString> files);
+    void OpenSrcFolder(wxString folder);
     void CloseSrcFolder();
     void OpenOutFolder(wxString folder);
     void CloseOutFolder();
     void OnOpenSrcFolder(wxCommandEvent& event);
     void OnCloseSrcFolder(wxCommandEvent& event);
-    void OnOpenOutFolder(wxCommandEvent& event);
+    void OnKeyDown(wxKeyEvent &event);
+
+    static std::vector<wxString> OpenFolder(wxString folder);
 
     wxDECLARE_EVENT_TABLE();
 };

@@ -10,17 +10,18 @@ public:
     PictureFrame(wxWindow *parent, wxWindowID id);
     void LoadImage(const wxString &fullPath);
     void CloseImage();
-    void SetZoom(int percentage);
+    bool SaveCrop(const wxString &fullPath, wxString &error);
+    void SetZoom(int percentage, bool refresh=false);
     void ZoomIn(int rot=1);
     void ZoomOut(int rot=1);
     void StartCrop();
     void SetCrop(wxRect crop);
 protected:
     void OnDraw(wxDC& dc) override;
-    void OnEraseBackGround(wxEraseEvent& event);
-    void OnMouseDrag(wxMouseEvent& event);
-    void OnMouseLeftDown(wxMouseEvent& event);
-    void OnMouseScroll(wxMouseEvent& event);
+    void OnEraseBackGround(wxEraseEvent &event);
+    void OnMouseDrag(wxMouseEvent &event);
+    void OnMouseLeftDown(wxMouseEvent &event);
+    void OnMouseScroll(wxMouseEvent &event);
     double GetFitImageZoom();
 
     wxDECLARE_EVENT_TABLE();
@@ -33,7 +34,7 @@ private:
     void ClampCropBoxSize();
     void UpdateScale();
     bool HitCrop(wxPoint pt);
-    void OnWindowSizeChange(wxSizeEvent& event);
+    void OnWindowSizeChange(wxSizeEvent &event);
     void OnCropBoxUpdate();
     wxPoint ToImageSpace(wxPoint pt);
 

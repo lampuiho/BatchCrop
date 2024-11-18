@@ -2,9 +2,10 @@
 #include <wx/sizer.h>
 #include <wx/tglbtn.h>
 #include <wx/filedlg.h>
-#include <wx/dcbuffer.h>
+#include <wx/popupwin.h>
 #include <wx/filename.h>
-#include "utils/events.hpp"
+#include "common/events.hpp"
+#include "components/NotificationPopup.hpp"
 #include "components/CropOptPanel.hpp"
 #include "components/FolderPicker.hpp"
 #include "components/FilePanel.hpp"
@@ -27,39 +28,34 @@ private:
     void OnSaveImage(wxCommandEvent& event);
     void OnZoomIn(wxCommandEvent& event);
     void OnZoomOut(wxCommandEvent& event);
+    void OnResetZoom(wxCommandEvent& event);
+    void OnZoomUpdate(wxCommandEvent& event);
     void OnCropToggle(wxCommandEvent& event);
     void OnCropEnd(wxCommandEvent& event);
     void OnCropBoxInput(wxCommandEvent& event);
     void OnCropBoxColorChange(wxCommandEvent& event);
     void OnTransparencyChange(wxCommandEvent& event);
-
-    // Helper methods
-    // void LoadImage(const wxString& filepath);
-    // void UpdateCropBox();
-
     // Controls
     FilePanel *filePanel;
     CropOptPanel *optPanel;
     PictureFrame *picFrame;
-
-    // Image and crop box parameters
-    wxImage currentImage;
-    wxRect cropBox;
-    bool positionLocked, sizeLocked;
-    int zoomLevel, transparency;
-
+    // Managers
+    PopupManager popupManager;
     wxDECLARE_EVENT_TABLE();
 };
 
 wxBEGIN_EVENT_TABLE(BatchCropFrame, wxFrame)
-    EVT_BUTTON(FilePanel::Picker::SOURCE+FolderPicker::Ctrl::CLOSE, BatchCropFrame::OnCloseSrcFolder)
+    EVT_COMMAND(FilePanel::Picker::SOURCE, CLOSE_FOLDER, BatchCropFrame::OnCloseSrcFolder)
     EVT_LISTBOX(FilePanel::FILE_LIST, BatchCropFrame::OnOpenFile)
     EVT_BUTTON(CropOptPanel::Ctrl::SAVE, BatchCropFrame::OnSaveImage)
     EVT_TOGGLEBUTTON(CropOptPanel::Ctrl::CROP, BatchCropFrame::OnCropToggle)
     EVT_COMMAND(CROP_OPT_PANEL_ID, DEFINE_CROP, BatchCropFrame::OnCropBoxInput)
     EVT_COMMAND(PICTURE_FRAME_ID, DEFINE_CROP, BatchCropFrame::OnCropEnd)
-    // EVT_BUTTON(1007, BatchCropFrame::OnZoomIn)
-    // EVT_BUTTON(1008, BatchCropFrame::OnZoomOut)
+    EVT_BUTTON(CropOptPanel::Ctrl::ZOOM_IN, BatchCropFrame::OnZoomIn)
+    EVT_BUTTON(CropOptPanel::Ctrl::ZOOM_OUT, BatchCropFrame::OnZoomOut)
+    EVT_BUTTON(CropOptPanel::Ctrl::ZOOM_LEVEL, BatchCropFrame::OnResetZoom)
+    EVT_COMMAND(PICTURE_FRAME_ID, UPDATE_ZOOM, BatchCropFrame::OnZoomUpdate)
+    EVT_COMMAND(wxID_ANY, REQ_SAVE, BatchCropFrame::OnSaveImage)
 wxEND_EVENT_TABLE()
 IMPLEMENT_APP(BatchCropApp)
 
@@ -70,13 +66,6 @@ bool BatchCropApp::OnInit() {
 }
 BatchCropFrame::BatchCropFrame(const wxString& title)
         : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)) {
-    // Initial states
-    zoomLevel = 100;
-    transparency = 20;
-    positionLocked = false;
-    sizeLocked = true;
-    cropBox = wxRect(0, 0, 0, 0);
-
     auto mainSizer = new wxBoxSizer(wxHORIZONTAL);
     // Left Panel
     // ------------------- //
@@ -107,9 +96,28 @@ void BatchCropFrame::OnOpenFile(wxCommandEvent& event) {
 }
 void BatchCropFrame::OnNextFile(wxCommandEvent& event) { /* Next file code */ }
 void BatchCropFrame::OnPreviousFile(wxCommandEvent& event) { /* Previous file code */ }
-void BatchCropFrame::OnSaveImage(wxCommandEvent& event) { /* Save cropped image code */ }
-void BatchCropFrame::OnZoomIn(wxCommandEvent& event) { /* Zoom in functionality */ }
-void BatchCropFrame::OnZoomOut(wxCommandEvent& event) { /* Zoom out functionality */ }
+void BatchCropFrame::OnSaveImage(wxCommandEvent& event) {
+    wxString error;
+    auto root = filePanel->GetOpenedOut();
+    if (root.IsEmpty()) error += "Have not specified output folder.\n";
+    auto file = filePanel->GetOpenedFile();
+    if (file.IsEmpty()) error += "Have not opened a file.\n";
+
+    wxString message;
+    if (error.IsEmpty()) {
+        wxFileName fname; fname.SetPath(root); fname.SetFullName(file);
+        auto fullPath = fname.GetFullPath();
+        message = picFrame->SaveCrop(fullPath, error) ? "File saved to: " + fullPath : file + " not saved.";
+        if (!error.IsEmpty()) message += '\n' + error;
+    } else {
+        message = "No file saved.\n" + error;
+    }
+    auto popup = new NotificationPopup(this, &popupManager, message);
+}
+void BatchCropFrame::OnZoomIn(wxCommandEvent& event) { picFrame->ZoomIn(); }
+void BatchCropFrame::OnZoomOut(wxCommandEvent& event) { picFrame->ZoomOut(); }
+void BatchCropFrame::OnResetZoom(wxCommandEvent& event) { picFrame->SetZoom(-1, true); }
+void BatchCropFrame::OnZoomUpdate(wxCommandEvent& event) { optPanel->UpdateZoom(event.GetInt()); }
 void BatchCropFrame::OnCropToggle(wxCommandEvent& event) {
     if (event.IsChecked()) picFrame->StartCrop();
 }

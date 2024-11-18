@@ -1,5 +1,7 @@
 #include <wx/artprov.h>
-#include "../utils/events.hpp"
+#include <wx/bmpbuttn.h>
+#include <wx/tglbtn.h>
+#include "../common/events.hpp"
 #include "CropOptPanel.hpp"
 
 CropOptPanel::CropOptPanel(wxFrame *parent) : wxPanel(parent, CROP_OPT_PANEL_ID) {
@@ -23,9 +25,13 @@ CropOptPanel::CropOptPanel(wxFrame *parent) : wxPanel(parent, CROP_OPT_PANEL_ID)
 
     // Crop settings toggle buttons
     auto toggleSizer = new wxBoxSizer(wxHORIZONTAL);
-    toggleSizer->Add(new wxBitmapToggleButton(this, Ctrl::POS_LOCK, wxArtProvider::GetIcon(wxART_STOP), wxDefaultPosition, {20,20}), 0, wxEXPAND | wxRIGHT, 5);
-    toggleSizer->Add(new wxBitmapToggleButton(this, Ctrl::SIZE_LOCK, wxArtProvider::GetIcon(wxART_STOP), wxDefaultPosition, {20,20}), 0, wxEXPAND | wxRIGHT, 5);
-    toggleSizer->Add(new wxButton(this, Ctrl::SAVE, "Save Image"), 0, wxEXPAND | wxRIGHT, 5);
+    toggleSizer->Add(new wxBitmapButton(this, Ctrl::ZOOM_OUT, wxArtProvider::GetIcon(wxART_MINUS)), 0, wxEXPAND | wxRIGHT, 5);
+    zoomLvl = new wxButton(this, Ctrl::ZOOM_LEVEL, "100%", wxDefaultPosition, wxDefaultSize, wxNO_BORDER);
+    toggleSizer->Add(zoomLvl, 0, wxEXPAND | wxRIGHT, 5);
+    toggleSizer->Add(new wxBitmapButton(this, Ctrl::ZOOM_IN, wxArtProvider::GetIcon(wxART_PLUS)), 0, wxEXPAND | wxRIGHT, 5);
+    toggleSizer->Add(new wxBitmapButton(this, Ctrl::SAVE, wxArtProvider::GetIcon(wxART_FILE_SAVE)), 0, wxEXPAND | wxRIGHT, 5);
+    // toggleSizer->Add(new wxBitmapToggleButton(this, Ctrl::POS_LOCK, wxArtProvider::GetIcon(wxART_STOP), wxDefaultPosition, {20,20}), 0, wxEXPAND | wxRIGHT, 5);
+    // toggleSizer->Add(new wxBitmapToggleButton(this, Ctrl::SIZE_LOCK, wxArtProvider::GetIcon(wxART_STOP), wxDefaultPosition, {20,20}), 0, wxEXPAND | wxRIGHT, 5);
     bottomLeftSizer->Add(toggleSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 
     this->SetSizer(bottomLeftSizer);
@@ -47,6 +53,9 @@ void CropOptPanel::OnEnterCropParam(wxCommandEvent &event) {
 void CropOptPanel::EndCrop() {
     cropToggle->SetValue(false);
 }
+void CropOptPanel::UpdateZoom(int perc) {
+    zoomLvl->SetLabel(std::to_string(perc) + "%");
+}
 void CropOptPanel::EndCrop(wxRect cropRect) {
     EndCrop();
     cropBox[0] = cropRect.x;
@@ -57,9 +66,10 @@ void CropOptPanel::EndCrop(wxRect cropRect) {
         cropInputs[i]->ChangeValue(std::to_string(cropBox[i]));
     }
 }
+
 BEGIN_EVENT_TABLE(CropOptPanel, wxPanel)
-EVT_TEXT(Ctrl::X_INPUT, CropOptPanel::OnEnterCropParam)
-EVT_TEXT(Ctrl::Y_INPUT, CropOptPanel::OnEnterCropParam)
-EVT_TEXT(Ctrl::W_INPUT, CropOptPanel::OnEnterCropParam)
-EVT_TEXT(Ctrl::H_INPUT, CropOptPanel::OnEnterCropParam)
+    EVT_TEXT(Ctrl::X_INPUT, CropOptPanel::OnEnterCropParam)
+    EVT_TEXT(Ctrl::Y_INPUT, CropOptPanel::OnEnterCropParam)
+    EVT_TEXT(Ctrl::W_INPUT, CropOptPanel::OnEnterCropParam)
+    EVT_TEXT(Ctrl::H_INPUT, CropOptPanel::OnEnterCropParam)
 END_EVENT_TABLE()
