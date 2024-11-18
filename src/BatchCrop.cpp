@@ -1,5 +1,6 @@
 #include <wx/wx.h>
 #include <wx/sizer.h>
+#include <wx/tglbtn.h>
 #include <wx/filedlg.h>
 #include <wx/dcbuffer.h>
 #include <wx/filename.h>
@@ -26,7 +27,9 @@ private:
     void OnSaveImage(wxCommandEvent& event);
     void OnZoomIn(wxCommandEvent& event);
     void OnZoomOut(wxCommandEvent& event);
-    void OnCropBoxAdjust(wxCommandEvent& event);
+    void OnCropToggle(wxCommandEvent& event);
+    void OnCropEnd(wxCommandEvent& event);
+    void OnCropBoxInput(wxCommandEvent& event);
     void OnCropBoxColorChange(wxCommandEvent& event);
     void OnTransparencyChange(wxCommandEvent& event);
 
@@ -36,6 +39,7 @@ private:
 
     // Controls
     FilePanel *filePanel;
+    CropOptPanel *optPanel;
     PictureFrame *picFrame;
 
     // Image and crop box parameters
@@ -51,7 +55,9 @@ wxBEGIN_EVENT_TABLE(BatchCropFrame, wxFrame)
     EVT_BUTTON(FilePanel::Picker::SOURCE+FolderPicker::Ctrl::CLOSE, BatchCropFrame::OnCloseSrcFolder)
     EVT_LISTBOX(FilePanel::FILE_LIST, BatchCropFrame::OnOpenFile)
     EVT_BUTTON(CropOptPanel::Ctrl::SAVE, BatchCropFrame::OnSaveImage)
-    EVT_COMMAND(CROP_OPT_PANEL_ID, DEFINE_CROP, BatchCropFrame::OnCropBoxAdjust)
+    EVT_TOGGLEBUTTON(CropOptPanel::Ctrl::CROP, BatchCropFrame::OnCropToggle)
+    EVT_COMMAND(CROP_OPT_PANEL_ID, DEFINE_CROP, BatchCropFrame::OnCropBoxInput)
+    EVT_COMMAND(PICTURE_FRAME_ID, DEFINE_CROP, BatchCropFrame::OnCropEnd)
     // EVT_BUTTON(1007, BatchCropFrame::OnZoomIn)
     // EVT_BUTTON(1008, BatchCropFrame::OnZoomOut)
 wxEND_EVENT_TABLE()
@@ -79,12 +85,12 @@ BatchCropFrame::BatchCropFrame(const wxString& title)
     filePanel = new FilePanel(this);
     leftSizer->Add(filePanel, 1, wxEXPAND);
     // === Bottom-Left Panel ===
-    auto optPanel = new CropOptPanel(this);
+    optPanel = new CropOptPanel(this);
     leftSizer->Add(optPanel, 0, wxEXPAND);
     // ------------------- //
     mainSizer->Add(leftSizer, 0, wxEXPAND);
     // === Right Panel ===
-    picFrame = new PictureFrame(this, wxID_ANY);
+    picFrame = new PictureFrame(this, PICTURE_FRAME_ID);
     mainSizer->Add(picFrame, 1, wxEXPAND);
 
     SetSizer(mainSizer);
@@ -104,9 +110,16 @@ void BatchCropFrame::OnPreviousFile(wxCommandEvent& event) { /* Previous file co
 void BatchCropFrame::OnSaveImage(wxCommandEvent& event) { /* Save cropped image code */ }
 void BatchCropFrame::OnZoomIn(wxCommandEvent& event) { /* Zoom in functionality */ }
 void BatchCropFrame::OnZoomOut(wxCommandEvent& event) { /* Zoom out functionality */ }
-void BatchCropFrame::OnCropBoxAdjust(wxCommandEvent &event) {
+void BatchCropFrame::OnCropToggle(wxCommandEvent& event) {
+    if (event.IsChecked()) picFrame->StartCrop();
+}
+void BatchCropFrame::OnCropEnd(wxCommandEvent &event) {
     auto &rect = *(wxRect*)event.GetClientData();
-    wxLogInfo("%d,%d,%d,%d",rect.x,rect.y,rect.width,rect.height);
+    optPanel->EndCrop(rect);
+}
+void BatchCropFrame::OnCropBoxInput(wxCommandEvent &event) {
+    auto &rect = *(wxRect*)event.GetClientData();
+    picFrame->SetCrop(rect);
 }
 void BatchCropFrame::OnCropBoxColorChange(wxCommandEvent& event) { /* Crop box color change */ }
 void BatchCropFrame::OnTransparencyChange(wxCommandEvent& event) { /* Transparency adjustment */ }

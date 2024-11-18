@@ -1,5 +1,4 @@
 #include <wx/artprov.h>
-#include <wx/tglbtn.h>
 #include "../utils/events.hpp"
 #include "CropOptPanel.hpp"
 
@@ -14,9 +13,12 @@ CropOptPanel::CropOptPanel(wxFrame *parent) : wxPanel(parent, CROP_OPT_PANEL_ID)
     cropInputSizer->Add(new wxStaticText(this, wxID_ANY, "H"));
     cropInputSizer->Add(new wxStaticText(this, wxID_ANY, ""));
     for (int c=Ctrl::X_INPUT; c<=Ctrl::H_INPUT; ++c) {
-        cropInputSizer->Add(new wxTextCtrl(this, c, "", wxDefaultPosition, {48,-1}));
+        auto p = new wxTextCtrl(this, c, "", wxDefaultPosition, {48,-1});
+        cropInputs[c-Ctrl::X_INPUT] = p;
+        cropInputSizer->Add(p);
     }
-    cropInputSizer->Add(new wxBitmapToggleButton(this, Ctrl::CROP, wxArtProvider::GetIcon(wxART_FULL_SCREEN), wxDefaultPosition, {20,20}));
+    cropToggle = new wxBitmapToggleButton(this, Ctrl::CROP, wxArtProvider::GetIcon(wxART_FULL_SCREEN), wxDefaultPosition, {20,20});
+    cropInputSizer->Add(cropToggle);
     bottomLeftSizer->Add(cropInputSizer, 0, wxEXPAND | wxALL, 5);
 
     // Crop settings toggle buttons
@@ -37,9 +39,23 @@ void CropOptPanel::OnEnterCropParam(wxCommandEvent &event) {
         cropBox[id - Ctrl::X_INPUT] = -1;
     }
     for (auto c: cropBox) if (c < 0) return;
-    wxCommandEvent cropEvent(DEFINE_CROP);
+    EndCrop();
+    wxCommandEvent cropEvent(DEFINE_CROP, this->GetId());
     cropEvent.SetClientData(new wxRect(cropBox[0],cropBox[1],cropBox[2],cropBox[3]));
     wxPostEvent(this, cropEvent);
+}
+void CropOptPanel::EndCrop() {
+    cropToggle->SetValue(false);
+}
+void CropOptPanel::EndCrop(wxRect cropRect) {
+    EndCrop();
+    cropBox[0] = cropRect.x;
+    cropBox[1] = cropRect.y;
+    cropBox[2] = cropRect.width;
+    cropBox[3] = cropRect.height;
+    for (int i=0; i<cropBox.size(); ++i) {
+        cropInputs[i]->ChangeValue(std::to_string(cropBox[i]));
+    }
 }
 BEGIN_EVENT_TABLE(CropOptPanel, wxPanel)
 EVT_TEXT(Ctrl::X_INPUT, CropOptPanel::OnEnterCropParam)

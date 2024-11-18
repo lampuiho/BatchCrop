@@ -17,7 +17,8 @@ void PictureFrame::LoadImage(const wxString &fullPath) {
     if (image.LoadFile(fullPath)) {
         bitmap = wxBitmap(image);
         if (!lockZoom) SetZoom(-1);
-        Refresh();
+        if (ClampCropBox()) OnCropBoxUpdate();
+        else Refresh();
     } else {
         wxLogError("Failed to load image: %s", fullPath);
         CloseImage();
@@ -49,26 +50,43 @@ void PictureFrame::UpdateScale() {
     UpdateScaleOffset(scale, oldScale);
     if (oldScale != scale) needRedraw = true;
 }
-void PictureFrame::StartCrop() { cropState = START; }
+void PictureFrame::StartCrop() {
+    if (bitmap.IsOk()) {
+        cropBox = {0,0,0,0};
+        cropState = START;
+        SetFocus();
+        OnCropBoxUpdate();
+    }
+}
+void PictureFrame::SetCrop(wxRect box) {
+    needRedraw = box != cropBox;
+    cropBox=box;
+    cropState = DONE;
+    if (needRedraw) Refresh();
+}
 void PictureFrame::OnDraw(wxDC& dc) {
-    auto gc = wxGraphicsContext::CreateFromUnknownDC(dc);
-    if (!gc) return;
     if (!bitmap.IsOk()) {
         dc.Clear();
-        lastRendered = {0,0};
     } else {
-        wxSize newSize = { static_cast<int>(bitmap.GetWidth()*scale),  static_cast<int>(bitmap.GetHeight()*scale) };
-        if (newSize.GetX()<lastRendered.GetX() || newSize.GetY()<lastRendered.GetY()) dc.Clear();
-        gc->Scale(scale, scale);
+        auto clientSize = GetClientSize();
+        wxBitmap tmpBitmap(clientSize);
+        wxMemoryDC tmpDc(tmpBitmap);
+        auto gc = wxGraphicsContext::Create(tmpDc);
+        if (!gc) return;
         gc->Translate(-scrollOffset.x, -scrollOffset.y);
+        gc->Scale(scale, scale);
         gc->DrawBitmap(bitmap, 0, 0, bitmap.GetWidth(), bitmap.GetHeight());
-        lastRendered = newSize;
+        gc->SetPen( wxColor(10,25,237,55) );
+        gc->SetBrush( wxColor(10,25,237,55) );
+        gc->DrawRectangle(cropBox.x, cropBox.y, cropBox.width, cropBox.height);
+        dc.Blit(0,0,clientSize.x,clientSize.y,&tmpDc,0,0);
+        delete gc;
     }
-    delete gc;
     needRedraw = false;
 }
 void PictureFrame::CloseImage() {
     if (bitmap.IsOk()) {
+        cropState = DONE;
         bitmap = wxBitmap();
         SetVirtualSize(GetClientSize());
         Refresh();
@@ -79,12 +97,30 @@ void PictureFrame::ClampScrollOffset() {
 
     wxSize clientSize = GetClientSize();
 
-    int scaledWidth = static_cast<int>(bitmap.GetWidth() * scale);
-    int scaledHeight = static_cast<int>(bitmap.GetHeight() * scale);
-
+    auto vSize = GetSize();
     // Ensure scrollOffset is within bounds
-    scrollOffset.x = std::clamp(scrollOffset.x, 0, std::max(0, scaledWidth - clientSize.GetWidth()));
-    scrollOffset.y = std::clamp(scrollOffset.y, 0, std::max(0, scaledHeight - clientSize.GetHeight()));
+    scrollOffset.x = std::clamp(scrollOffset.x, 0, std::max(0, vSize.x-clientSize.x));
+    scrollOffset.y = std::clamp(scrollOffset.y, 0, std::max(0, vSize.y-clientSize.y));
+}
+bool PictureFrame::ClampCropBox() {
+    if (!bitmap.IsOk()) return false;
+    auto backup = cropBox;
+    auto size = bitmap.GetSize();
+    cropBox.width = std::min(size.x, cropBox.width);
+    cropBox.height = std::min(size.y, cropBox.height);
+    cropBox.x = std::clamp(cropBox.x, 0, size.x - cropBox.width);
+    cropBox.y = std::clamp(cropBox.y, 0, size.y - cropBox.height);
+    if (backup != cropBox) return true;
+    return false;
+}
+void PictureFrame::ClampCropBoxSize() {
+    if (!bitmap.IsOk()) return;
+    auto size = bitmap.GetSize();
+    cropBox.width = std::clamp(cropBox.width, 0, size.x - cropBox.x); // x+w <= x_image
+    cropBox.height = std::clamp(cropBox.height, 0, size.y - cropBox.y);
+}
+wxSize PictureFrame::GetSize() {
+    return wxSize(static_cast<int>(bitmap.GetWidth()*scale), static_cast<int>(bitmap.GetHeight()*scale));
 }
 void PictureFrame::UpdateScaleOffset(double newScale, double oldScale) {
     auto s = newScale/oldScale;
@@ -92,40 +128,77 @@ void PictureFrame::UpdateScaleOffset(double newScale, double oldScale) {
     scrollOffset.y = static_cast<int>(s*scrollOffset.y);
     ClampScrollOffset();
 }
+bool PictureFrame::HitCrop(wxPoint pt) {
+    wxPoint scaled(pt.x/scale, pt.y/scale);
+    return cropBox.Contains(scaled);
+}
 void PictureFrame::OnMouseLeftDown(wxMouseEvent &event) {
     if (cropState == DONE) {
-        isPanning = true;
+        if (HitCrop(event.GetPosition())) isDraggingCrop = true;
+        else isPanning = true;
         panStart = event.GetPosition();
         CaptureMouse();  // Capture mouse for dragging
     } else {
-        auto [x, y] = event.GetPosition();
+        auto [x,y] = ToImageSpace(event.GetPosition());
         if (cropState++ == START) {
+            panStart = {x,y};
             cropBox.x = x; cropBox.y = y;
+            // Capture mouse position update for refreshing the crop size
+            CaptureMouse();
         } else {
-            cropBox.width = x - cropBox.x + 1; cropBox.height = y - cropBox.y + 1;
-            wxCommandEvent event(DEFINE_CROP);
-            event.SetClientData(&cropBox);
-            wxPostEvent(this, event);
+            ReleaseMouse();
+            auto backup = cropBox;
+            cropBox.width = x-panStart.x; cropBox.height = y-panStart.y;
+            if (cropBox.width < 0) {
+                cropBox.width = -cropBox.width;
+                cropBox.x = panStart.x-cropBox.width;
+            }
+            if (cropBox.height < 0) {
+                cropBox.height = -cropBox.height;
+                cropBox.y = panStart.y-cropBox.height;
+            }
+            ClampCropBoxSize();
+            if (cropBox!=backup) OnCropBoxUpdate();
         }
     }
 }
 void PictureFrame::OnMouseDrag(wxMouseEvent& event) {
-    if (isPanning && event.Dragging() && event.LeftIsDown()) {
+    if ((isPanning || isDraggingCrop) && event.Dragging() && event.LeftIsDown()) {
         wxPoint currentPos = event.GetPosition();
-        wxPoint delta = panStart - currentPos;
+        wxPoint delta = isPanning ? panStart-currentPos : currentPos-panStart;
         panStart = currentPos;
-        // Adjust scroll position based on drag delta
-        auto backup = scrollOffset;
-        scrollOffset += delta;
-        ClampScrollOffset();
-        if (scrollOffset != backup) {
-            needRedraw = true;
-            Refresh();
+        if (isPanning) {
+            // Adjust scroll position based on drag delta
+            auto backup = scrollOffset;
+            scrollOffset += delta;
+            ClampScrollOffset();
+            if (scrollOffset != backup) Refresh();
+        } else if (isDraggingCrop) {
+            auto backup = wxPoint(cropBox.x, cropBox.y);
+            // adjust delta to be image space;
+            cropBox.x += delta.x/scale; cropBox.y += delta.y/scale;
+            ClampCropBox();
+            if (wxPoint(cropBox.x, cropBox.y)!=backup) OnCropBoxUpdate();
         }
-    }
-    if (isPanning && event.LeftUp()) {
+    } else if ((isPanning || isDraggingCrop) && event.LeftUp()) {
         isPanning = false;
+        isDraggingCrop = false;
         ReleaseMouse();
+    }
+    if (cropState == NEXT) {
+        auto backup = cropBox;
+        auto [x,y] = ToImageSpace(event.GetPosition());
+        cropBox.width = x-panStart.x; cropBox.height = y-panStart.y;
+        if (cropBox.width < 0) {
+            cropBox.width = -cropBox.width;
+            cropBox.x = panStart.x-cropBox.width;
+        }
+        if (cropBox.height < 0) {
+            cropBox.height = -cropBox.height;
+            cropBox.y = panStart.y-cropBox.height;
+        }
+        ClampCropBoxSize();
+        if (cropBox!=backup) OnCropBoxUpdate();
     }
 }
 void PictureFrame::OnMouseScroll(wxMouseEvent& event) {
@@ -138,7 +211,18 @@ void PictureFrame::OnWindowSizeChange(wxSizeEvent& event) {
     UpdateScale();
     Refresh();
 }
-void PictureFrame::OnEraseBackGround(wxEraseEvent& event) { event.Skip(); }
+void PictureFrame::OnEraseBackGround(wxEraseEvent& event) {}
+void PictureFrame::OnCropBoxUpdate() {
+    Refresh();
+    wxCommandEvent event(DEFINE_CROP, this->GetId());
+    event.SetClientData(&cropBox);
+    wxPostEvent(this, event);
+}
+wxPoint PictureFrame::ToImageSpace(wxPoint pt) {
+    pt -= scrollOffset;
+    pt.x /= scale; pt.y /= scale;
+    return pt;
+}
 
 BEGIN_EVENT_TABLE(PictureFrame,wxScrolledWindow)
     EVT_ERASE_BACKGROUND(PictureFrame::OnEraseBackGround)
