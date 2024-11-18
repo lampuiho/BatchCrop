@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 message("Generated with config types: ${CMAKE_CONFIGURATION_TYPES}")
 
+set(wxWidgets_USE_UNICODE ON)
 if( CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+    set(wxWidgets_USE_STATIC ON)
+    set(wxWidgets_CONFIGURATION mswu)
 endif()
 
 project(BatchCrop)
