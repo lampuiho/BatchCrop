@@ -152,7 +152,7 @@ void PictureFrame::UpdateScaleOffset(double newScale, double oldScale) {
     ClampScrollOffset();
 }
 bool PictureFrame::HitCrop(wxPoint pt) {
-    wxPoint scaled(pt.x/scale, pt.y/scale);
+    wxPoint scaled(pt.x/scale+scrollOffset.x, pt.y/scale+scrollOffset.y);
     return cropBox.Contains(scaled);
 }
 void PictureFrame::OnMouseLeftDown(wxMouseEvent &event) {
