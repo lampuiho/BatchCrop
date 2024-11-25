@@ -81,10 +81,13 @@ void PictureFrame::StartCrop() {
     }
 }
 void PictureFrame::SetCrop(wxRect box) {
-    needRedraw = box != cropBox;
-    cropBox=box;
+    auto oldCrop = cropBox;
+    cropBox = box;
+    ClampCropBox();
+    needRedraw = oldCrop != cropBox;
     cropState = DONE;
-    if (needRedraw) Refresh();
+    if (box != cropBox) OnCropBoxUpdate();
+    else if (needRedraw) Refresh();
 }
 void PictureFrame::OnDraw(wxDC& dc) {
     if (!bitmap.IsOk()) {
